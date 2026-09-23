@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KKTC GSYİH Tahmin Modeli | Ekonometrik Dashboard</title>
+  
+  <!-- Inter & Cal Sans typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js for minimalist trend visualizer -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Cal.com Design System CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Info Banner -->
+  <div class="top-banner">
+    <span>Ekonometrik ARDL Modeli (1982–2024 serisi ile eğitilmiş, LOO-MAPE: %2.83)</span>
+    <span>•</span>
+    <span>2024 Validasyon Hatası: <strong>-%0.94</strong></span>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <span class="dot"></span>
+        <span>KKTC İstatistik & Planlama</span>
+      </div>
+      <h1 class="page-title">GSYİH Tahmin Dashboard'u</h1>
+      <p class="page-subtitle">1977 Sabit Fiyatlarıyla Reel GSYİH & Deflatör Tahmin Modelleme Sistemi</p>
+    </div>
+
+    <div class="header-actions">
+      <!-- Preset Year Selector -->
+      <div class="preset-group">
+        <button type="button" class="preset-btn" data-preset="2024">2024 Validasyon</button>
+        <button type="button" class="preset-btn active" data-preset="2025">2025 Tahmin</button>
+        <button type="button" class="preset-btn" data-preset="2026">2026 Projeksiyon</button>
+      </div>
+
+      <button type="button" id="resetBtn" class="btn btn-ghost" title="Varsayılan değerlere sıfırla">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        Sıfırla
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Grid -->
+  <main class="dashboard-container">
+
+    <!-- LEFT COLUMN: INPUT PARAMETERS -->
+    <div class="col-inputs">
+      
+      <!-- Card 1: Makroekonomik & Demografik Göstergeler -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+              Makro & Demografi Girdileri
+            </h2>
+            <div class="card-subtitle">Enflasyon, kur ve reel tüketim göstergeleri</div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <!-- Hedef Yıl -->
+          <div class="form-group full-width">
+            <label class="field-label" for="year">
+              <span>Hedef Tahmin Yılı</span>
+              <span class="hint">Model lag referansını otomatik ayarlar</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="year" class="form-control" value="2025" min="1985" max="2035">
+              <span class="input-unit">Yıl</span>
+            </div>
+          </div>
+
+          <!-- Yıllık Enflasyon (CPIchg) -->
+          <div class="form-group">
+            <label class="field-label" for="cpichg">
+              <span>TÜFE Değişimi (CPI)</span>
+              <span class="hint">Yıllık</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="cpichg" class="form-control" step="0.01" value="39.45">
+              <span class="input-unit">%</span>
+            </div>
+          </div>
+
+          <!-- Yıllık Kur Değişimi (USDTRYchg) -->
+          <div class="form-group">
+            <label class="field-label" for="usdtrychg">
+              <span>USD/TRY Değişimi</span>
+              <span class="hint">Yıllık</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="usdtrychg" class="form-control" step="0.01" value="20.38">
+              <span class="input-unit">%</span>
+            </div>
+          </div>
+
+          <!-- Nüfus (POP) -->
+          <div class="form-group">
+            <label class="field-label" for="pop">
+              <span>Nüfus (POP)</span>
+              <span class="hint">Kişi sayısı</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="pop" class="form-control" step="1" value="504880">
+              <span class="input-unit">Kişi</span>
+            </div>
+          </div>
+
+          <!-- Elektrik Tüketimi (ElectricKwH) -->
+          <div class="form-group">
+            <label class="field-label" for="electrickwh">
+              <span>Elektrik Tüketimi</span>
+              <span class="hint">Korelasyon: +0.97</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="electrickwh" class="form-control" step="0.01" value="2135.80">
+              <span class="input-unit">milyon kWh</span>
+            </div>
+          </div>
+
+          <!-- Pandemi / Kriz Şok Kuklası (DummyCorona) -->
+          <div class="form-group full-width">
+            <label class="field-label" for="dummycorona">
+              <span>Olağanüstü Dışsal Şok (DummyCorona)</span>
+              <span class="hint">2020 & 2021 için = 1, normal yıllar = 0</span>
+            </label>
+            <select id="dummycorona" class="form-control">
+              <option value="0" selected>0 — Normal Ekonomik Seyir</option>
+              <option value="1">1 — Pandemi / Kriz Benzeri Ağır Şok</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Cari (Nominal) Büyüklükler & Deflatör Motoru -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+              Cari Değerler & Deflatör
+            </h2>
+            <div class="card-subtitle">Nominal harcamalar deflatöre bölünerek reelleştirilir</div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <!-- Cari Kamu Harcamaları (PubSPEN) -->
+          <div class="form-group full-width">
+            <label class="field-label" for="pubspen_nom">
+              <span>Kamu Harcamaları (Cari TL)</span>
+              <span class="hint">PubSPEN77 cari</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="pubspen_nom" class="form-control" value="129839075419" step="1000">
+              <span class="input-unit">TL</span>
+            </div>
+          </div>
+
+          <!-- Cari Mevduat (DEPOSIT) -->
+          <div class="form-group full-width">
+            <label class="field-label" for="deposit_nom">
+              <span>Banka Mevduatları (Cari TL)</span>
+              <span class="hint">DEPOSIT77 cari</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="deposit_nom" class="form-control" value="381222049000" step="1000">
+              <span class="input-unit">TL</span>
+            </div>
+          </div>
+
+          <!-- Cari İthalat (IMP) -->
+          <div class="form-group">
+            <label class="field-label" for="imp_nom">
+              <span>Toplam İthalat (Cari TL)</span>
+              <span class="hint">IMP77 cari</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="imp_nom" class="form-control" value="148220100000" step="1000">
+              <span class="input-unit">TL</span>
+            </div>
+          </div>
+
+          <!-- Cari Krediler (KREDI) -->
+          <div class="form-group">
+            <label class="field-label" for="kredi_nom">
+              <span>Banka Kredileri (Cari TL)</span>
+              <span class="hint">KREDI77 cari</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="kredi_nom" class="form-control" value="197726563000" step="1000">
+              <span class="input-unit">TL</span>
+            </div>
+          </div>
+
+          <!-- Deflatör Metodu -->
+          <div class="form-group full-width">
+            <label class="field-label" for="deflatorMethodSelect">
+              <span>Deflatör Hesaplama Yöntemi</span>
+            </label>
+            <select id="deflatorMethodSelect" class="form-control">
+              <option value="regression" selected>Ekonometrik Regresyon Modeli (Tavsiye Edilen: R²=0.87)</option>
+              <option value="simple">Basit Formül (%40 Kur + %60 TÜFE)</option>
+              <option value="manual">Manuel Özel Deflatör Girişi</option>
+            </select>
+          </div>
+
+          <!-- Manuel Deflatör Input (varsayılan gizli) -->
+          <div class="form-group full-width" id="manualDeflatorGroup" style="display: none;">
+            <label class="field-label" for="manualDeflatorInput">
+              <span>Özel Deflatör Değeri</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="number" id="manualDeflatorInput" class="form-control" value="14875041" step="1">
+              <span class="input-unit">Endeks</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canlı Hesaplanan Deflatör Kutusu -->
+        <div class="deflator-calc-box">
+          <div class="deflator-header">
+            <span>Uygulanan Fiyat Deflatörü</span>
+            <span id="calcDeflatorGrowth" class="growth-badge positive">+36.65%</span>
+          </div>
+          <div class="deflator-value" id="calcDeflatorVal">14,875,041</div>
+          <div class="deflator-sub" id="calcDeflatorSub">Regresyon Formülü (R²=0.87): Baz = 10,885,857</div>
+
+          <!-- Hesaplanan 1977 Sabit Reel Değerler Önizlemesi -->
+          <div class="real-preview-grid">
+            <div class="real-item">
+              PubSPEN (1977):
+              <strong id="realPubSpen">8,728.7</strong>
+            </div>
+            <div class="real-item">
+              DEPOSIT (1977):
+              <strong id="realDeposit">25,628.4</strong>
+            </div>
+            <div class="real-item">
+              IMP (1977):
+              <strong id="realImp">9,964.4</strong>
+            </div>
+            <div class="real-item">
+              KREDI (1977):
+              <strong id="realKredi">13,292.6</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: RESULTS, MODELS & ANALYTICS -->
+    <div class="col-results">
+
+      <!-- Hero Result Card -->
+      <div class="hero-result-card">
+        <div class="hero-top">
+          <span class="hero-tag" id="heroYearTag">2025 TAHMİNİ</span>
+          <span class="growth-badge positive" id="heroGrowthBadge">+4.89% Reel Büyüme</span>
+        </div>
+
+        <div class="hero-gdp-number" id="heroGdpNumber">22,351.9</div>
+        <div class="hero-gdp-sub">1977 Sabit Fiyatlarıyla KKTC Reel GSYİH (GDP77 Milyon TL)</div>
+
+        <div class="hero-stats-row">
+          <div class="hero-stat-col">
+            <span class="hero-stat-label">Cari Nominal GSYİH</span>
+            <span class="hero-stat-val" id="heroNominalGdp">332,484 Milyon ₺</span>
+          </div>
+          <div class="hero-stat-col">
+            <span class="hero-stat-label">Bir Önceki Yıl GSYİH</span>
+            <span class="hero-stat-val" id="heroPrevGdp">21,310.6 (2024)</span>
+          </div>
+          <div class="hero-stat-col">
+            <span class="hero-stat-label">Model Güvenilirliği</span>
+            <span class="hero-stat-val">MAPE: %2.83</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Time Series Chart -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Reel GSYİH Tarihsel Seyri & Projeksiyon</h3>
+            <div class="card-subtitle">1990–2024 gerçekleşen seriler ve tahmin edilen yıl</div>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="gdpTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Model Comparison Table -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Model Kıyaslama Tablosu</h3>
+            <div class="card-subtitle">Leave-One-Out Çapraz Doğrulama (LOO-CV) Hata Metrikleri</div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>LOO MAPE</th>
+                <th>Reel Tahmin (GDP77)</th>
+                <th>Büyüme (%)</th>
+              </tr>
+            </thead>
+            <tbody id="modelComparisonBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Deflator Sensitivity & Stress Test Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Deflatör Duyarlılık & Stres Testi</h3>
+            <div class="card-subtitle">Deflatör sapmalarının reel büyüme üzerindeki marjinal etkisi</div>
+          </div>
+        </div>
+
+        <div class="sensitivity-control">
+          <span style="font-size: 12px; color: var(--color-slate); font-weight: 500;">Deflatör Sapması:</span>
+          <div class="slider-wrapper">
+            <input type="range" id="deflatorSlider" class="custom-slider" min="-20" max="20" step="1" value="0">
+          </div>
+          <div class="slider-val-box" id="sliderPctDisplay">0%</div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--color-paper); padding: 10px 14px; border-radius: var(--radius-inputs); margin-bottom: 14px; font-size: 13px;">
+          <span>Stres Testi Sonucu Reel GSYİH:</span>
+          <div>
+            <strong id="sliderResultGdp" style="font-size: 15px; margin-right: 8px;">22,351.9</strong>
+            <span id="sliderResultGrowth" class="growth-badge positive" style="padding: 2px 8px; font-size: 12px;">+4.89%</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Senaryo</th>
+                <th>Deflatör</th>
+                <th>Reel İthalat</th>
+                <th>ARDL GSYİH</th>
+                <th>Reel Büyüme</th>
+              </tr>
+            </thead>
+            <tbody id="sensitivityTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div>
+      <strong>KKTC GSYİH Tahmin Modeli</strong> — ARDL Ekonometrik Modelleme Dashboard'u
+    </div>
+    <div>
+      GitHub Pages Uyumlu Statik Web Platformu
+    </div>
+  </footer>
+
+  <!-- Model Data & Application Logic -->
+  <script src="model_data.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
