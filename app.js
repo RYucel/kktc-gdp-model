@@ -510,6 +510,56 @@
     updateUI();
   }
 
+  const FORMATTED_FIELDS = ['pubspen_nom', 'deposit_nom', 'imp_nom', 'kredi_nom', 'pop', 'manualDeflatorInput'];
+
+  function formatIntegerThousand(val) {
+    if (val === null || val === undefined || isNaN(val) || val === '') return '';
+    const intVal = Math.round(Number(val));
+    return intVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function parseFormattedInt(str) {
+    if (!str) return 0;
+    const clean = str.toString().replace(/\./g, '').replace(/\s/g, '').replace(/,/g, '');
+    const num = parseInt(clean, 10);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function attachThousandFormatter(el, onValueChange) {
+    el.addEventListener('input', function() {
+      const origVal = this.value;
+      const cursor = this.selectionStart;
+
+      // Digits before cursor in original string
+      const digitsBefore = origVal.slice(0, cursor).replace(/\D/g, '').length;
+
+      // Extract raw digits
+      const digitsOnly = origVal.replace(/\D/g, '');
+      if (!digitsOnly) {
+        this.value = '';
+        if (onValueChange) onValueChange(0);
+        return;
+      }
+
+      // Format with dots as thousand separator
+      const formatted = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      this.value = formatted;
+
+      // Restore cursor position
+      let newCursor = 0;
+      let counted = 0;
+      while (newCursor < formatted.length && counted < digitsBefore) {
+        if (/\d/.test(formatted[newCursor])) {
+          counted++;
+        }
+        newCursor++;
+      }
+      this.setSelectionRange(newCursor, newCursor);
+
+      if (onValueChange) onValueChange(Number(digitsOnly));
+    });
+  }
+
   function populateInputFields() {
     const fields = [
       'year', 'pubspen_nom', 'deposit_nom', 'imp_nom', 'kredi_nom',
@@ -518,9 +568,18 @@
     fields.forEach(field => {
       const el = document.getElementById(field);
       if (el) {
-        el.value = state.inputs[field];
+        if (FORMATTED_FIELDS.includes(field)) {
+          el.value = formatIntegerThousand(state.inputs[field]);
+        } else {
+          el.value = state.inputs[field];
+        }
       }
     });
+
+    const manualDefEl = document.getElementById('manualDeflatorInput');
+    if (manualDefEl && state.manualDeflator) {
+      manualDefEl.value = formatIntegerThousand(state.manualDeflator);
+    }
   }
 
   function syncInputsFromDOM() {
@@ -531,7 +590,11 @@
     fields.forEach(field => {
       const el = document.getElementById(field);
       if (el) {
-        state.inputs[field] = Number(el.value);
+        if (FORMATTED_FIELDS.includes(field)) {
+          state.inputs[field] = parseFormattedInt(el.value);
+        } else {
+          state.inputs[field] = Number(el.value);
+        }
       }
     });
   }
@@ -540,10 +603,29 @@
   function init() {
     populateInputFields();
 
-    // Input change events (instant calculation)
-    const formInputs = document.querySelectorAll('.form-control');
-    formInputs.forEach(input => {
+    // Attach thousand formatters to numeric text inputs
+    FORMATTED_FIELDS.forEach(fieldId => {
+      const el = document.getElementById(fieldId);
+      if (el) {
+        attachThousandFormatter(el, (numVal) => {
+          if (fieldId === 'manualDeflatorInput') {
+            state.manualDeflator = numVal;
+          } else {
+            state.inputs[fieldId] = numVal;
+          }
+          updateUI();
+        });
+      }
+    });
+
+    // Input change events for non-formatted controls (select, range, decimal inputs)
+    const otherInputs = document.querySelectorAll('.form-control:not(.formatted-number)');
+    otherInputs.forEach(input => {
       input.addEventListener('input', () => {
+        syncInputsFromDOM();
+        updateUI();
+      });
+      input.addEventListener('change', () => {
         syncInputsFromDOM();
         updateUI();
       });
@@ -570,16 +652,13 @@
         state.deflatorMethod = e.target.value;
         if (state.deflatorMethod === 'manual') {
           if (manualGroup) manualGroup.style.display = 'block';
+          if (manualInput && !state.manualDeflator && state.results) {
+            state.manualDeflator = Math.round(state.results.deflator);
+            manualInput.value = formatIntegerThousand(state.manualDeflator);
+          }
         } else {
           if (manualGroup) manualGroup.style.display = 'none';
         }
-        updateUI();
-      });
-    }
-
-    if (manualInput) {
-      manualInput.addEventListener('input', (e) => {
-        state.manualDeflator = Number(e.target.value);
         updateUI();
       });
     }

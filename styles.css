@@ -301,6 +301,14 @@ input.form-control:focus, select.form-control:focus {
   box-shadow: 0 0 0 1px var(--color-ink);
 }
 
+input.form-control.formatted-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  padding-right: 36px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 .input-unit {
   position: absolute;
   right: 12px;
