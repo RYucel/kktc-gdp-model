@@ -194,6 +194,71 @@ p.page-subtitle {
   border-color: #d1d5db;
 }
 
+/* Scenario status bar */
+.status-bar {
+  max-width: var(--page-max-width);
+  margin: -8px auto 16px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.status-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-pills);
+  background: var(--color-white);
+  border: 1px solid var(--color-silver);
+  color: var(--color-graphite);
+  font-weight: 500;
+}
+
+.status-chip.modified {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.status-text {
+  color: var(--color-slate);
+}
+
+.status-text.flash {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.year-state {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  background: var(--color-silver);
+  color: var(--color-ink);
+}
+
+.year-state.modified {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+input.form-control[readonly] {
+  background: var(--color-paper);
+  color: var(--color-slate);
+  cursor: default;
+}
+
+input.form-control[readonly]:focus {
+  border-color: var(--color-silver);
+  box-shadow: none;
+}
+
 /* Main Layout Grid */
 .dashboard-container {
   max-width: var(--page-max-width);

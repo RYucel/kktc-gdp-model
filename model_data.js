@@ -199,6 +199,18 @@ window.MODEL_DATA = {
     "prev_deflator": 10885856.95,
     "prev_gdp77": 21310.57
   },
+  "defaults_2026": {
+    "year": 2026,
+    "pubspen_nom": 181103107500,
+    "deposit_nom": 575226213800,
+    "imp_nom": 197794441440,
+    "kredi_nom": 295929197335,
+    "pop": 520785,
+    "electrickwh": 2153.34,
+    "dummycorona": 0,
+    "usdtrychg": 19.41,
+    "cpichg": 35.9
+  },
   "history": [
     {
       "year": 1982,

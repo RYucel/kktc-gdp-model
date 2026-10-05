@@ -6,25 +6,21 @@
 (function () {
   'use strict';
 
+  // Editable forecast years (each has defaults_YYYY in MODEL_DATA)
+  const SCENARIO_YEARS = [2025, 2026];
+  const INPUT_FIELDS = [
+    'pubspen_nom', 'deposit_nom', 'imp_nom', 'kredi_nom',
+    'pop', 'electrickwh', 'dummycorona', 'usdtrychg', 'cpichg'
+  ];
+  const STORAGE_KEY = 'kktc-gdp-scenario-v1';
+
   // Global state
   const state = {
-    year: 2025,
     deflatorMethod: 'regression', // 'regression' | 'simple' | 'manual'
-    manualDeflator: null,
-    sensitivityShiftPct: 0, // for slider -20 to +20%
-    inputs: {
-      year: 2025,
-      pubspen_nom: 129839075419,
-      deposit_nom: 381222049000,
-      imp_nom: 148220100000,
-      kredi_nom: 197726563000,
-      pop: 504880,
-      electrickwh: 2135.799,
-      dummycorona: 0,
-      usdtrychg: 20.38,
-      cpichg: 39.45
-    },
+    scenario: {}, // { 2025: inputs, 2026: inputs } — user-editable, persisted
+    inputs: null, // inputs of the active year (same object as scenario[year] for forecast years)
     results: null,
+    lastRunAt: null,
     chartInstance: null
   };
 
@@ -51,29 +47,110 @@
     return sign + Number(num).toFixed(2) + '%';
   }
 
-  // Find previous year's actual GDP and Deflator
+  // Default input set for a forecast year (defaults_YYYY in MODEL_DATA), if any
+  function getYearDefaults(year) {
+    const def = window.MODEL_DATA['defaults_' + year];
+    if (!def) return null;
+    const inputs = { year: year, manual_deflator: null };
+    INPUT_FIELDS.forEach(f => { inputs[f] = def[f]; });
+    return inputs;
+  }
+
+  function defaultScenario() {
+    const scenario = {};
+    SCENARIO_YEARS.forEach(y => { scenario[y] = getYearDefaults(y); });
+    return scenario;
+  }
+
+  // Restore user edits from browser storage; anything missing or invalid falls back to defaults
+  function loadSavedState() {
+    const scenario = defaultScenario();
+    let method = 'regression';
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        SCENARIO_YEARS.forEach(y => {
+          const src = saved.scenario && saved.scenario[y];
+          if (!src) return;
+          INPUT_FIELDS.concat('manual_deflator').forEach(f => {
+            if (typeof src[f] === 'number' && isFinite(src[f])) scenario[y][f] = src[f];
+          });
+        });
+        if (['regression', 'simple', 'manual'].includes(saved.deflatorMethod)) method = saved.deflatorMethod;
+      }
+    } catch (e) { /* storage unavailable — use defaults */ }
+    state.scenario = scenario;
+    state.deflatorMethod = method;
+  }
+
+  function saveState() {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        scenario: state.scenario,
+        deflatorMethod: state.deflatorMethod
+      }));
+    } catch (e) { /* storage unavailable — edits live for this session only */ }
+  }
+
+  function isYearModified(year) {
+    const def = getYearDefaults(year);
+    const cur = state.scenario[year];
+    return INPUT_FIELDS.some(f => Number(cur[f]) !== Number(def[f]));
+  }
+
+  // Find previous year's GDP and Deflator. If the previous year is not in history
+  // but is an editable scenario year, chain: forecast that year first (ARDL) with the
+  // user's inputs and use its GDP77 and deflator as the lag/base for the target year.
   function getPreviousYearData(targetYear) {
     const history = window.MODEL_DATA.history;
-    // Look for targetYear - 1
-    const prev = history.find(h => h.year === (targetYear - 1));
+    const prevYear = targetYear - 1;
+    const prev = history.find(h => h.year === prevYear);
     if (prev) {
       return {
         year: prev.year,
         gdp77: prev.gdp77,
-        deflator: prev.deflator
+        deflator: prev.deflator,
+        isForecast: false
       };
     }
-    // Fallback: use 2024 if beyond 2024
-    const last2024 = history.find(h => h.year === 2024) || history[history.length - 1];
+    const lastHist = history[history.length - 1];
+    const prevInputs = prevYear > lastHist.year ? state.scenario[prevYear] : null;
+    if (prevInputs) {
+      const res = runPrediction(prevInputs);
+      return {
+        year: prevYear,
+        gdp77: res.predictions.ardl.val,
+        deflator: res.deflator,
+        isForecast: true
+      };
+    }
+    // Fallback: last available history year
     return {
-      year: last2024.year,
-      gdp77: last2024.gdp77,
-      deflator: last2024.deflator
+      year: lastHist.year,
+      gdp77: lastHist.gdp77,
+      deflator: lastHist.deflator,
+      isForecast: false
     };
   }
 
+  // Chained ARDL forecast points between last history year and target year (exclusive)
+  function getIntermediateForecasts(targetYear) {
+    const history = window.MODEL_DATA.history;
+    const lastYear = history[history.length - 1].year;
+    const points = [];
+    for (let y = lastYear + 1; y < targetYear; y++) {
+      const prev = getPreviousYearData(y + 1);
+      if (!prev.isForecast || prev.year !== y) break;
+      points.push({ year: y, gdp77: prev.gdp77 });
+    }
+    return points;
+  }
+
   // 1. Calculate Deflator
+  // Manual method uses the year's own manual_deflator; without one it falls back to regression
   function calculateDeflator(inputs, prevDeflator) {
+    const method = state.deflatorMethod;
     const dReg = window.MODEL_DATA.deflator_reg;
     const usd = Number(inputs.usdtrychg) || 0;
     const cpi = Number(inputs.cpichg) || 0;
@@ -88,17 +165,21 @@
 
     let finalDeflator = deflatorReg;
     let growthPct = regGrowthPct;
+    let methodUsed = 'regression';
 
-    if (state.deflatorMethod === 'simple') {
+    if (method === 'simple') {
       finalDeflator = deflatorSimple;
       growthPct = simpleGrowthPct;
-    } else if (state.deflatorMethod === 'manual' && state.manualDeflator) {
-      finalDeflator = Number(state.manualDeflator);
+      methodUsed = 'simple';
+    } else if (method === 'manual' && inputs.manual_deflator) {
+      finalDeflator = Number(inputs.manual_deflator);
       growthPct = ((finalDeflator - prevDeflator) / prevDeflator) * 100;
+      methodUsed = 'manual';
     }
 
     return {
       finalDeflator,
+      methodUsed,
       deflatorReg,
       deflatorSimple,
       growthPct,
@@ -174,8 +255,10 @@
       prevYear: prevData.year,
       prevGdp77: gdpLag,
       prevDeflator: prevData.deflator,
+      prevIsForecast: prevData.isForecast,
       deflator: activeDeflator,
       deflatorGrowth: deflInfo.growthPct,
+      deflatorMethodUsed: overrideDeflator !== null ? 'override' : deflInfo.methodUsed,
       deflatorReg: deflInfo.deflatorReg,
       deflatorSimple: deflInfo.deflatorSimple,
       realValues: {
@@ -213,6 +296,7 @@
   // DOM update functions
   function updateUI() {
     state.results = runPrediction(state.inputs);
+    state.lastRunAt = new Date();
     const r = state.results;
 
     // 1. Deflator box
@@ -230,8 +314,10 @@
         deflSubEl.textContent = `Regresyon Formülü (R²=0.87): Baz = ${formatNumber(r.prevDeflator, 0)}`;
       } else if (state.deflatorMethod === 'simple') {
         deflSubEl.textContent = `Basit Formül (%40 Kur + %60 TÜFE): Baz = ${formatNumber(r.prevDeflator, 0)}`;
+      } else if (r.deflatorMethodUsed === 'manual') {
+        deflSubEl.textContent = `Manuel Girilen Değer: Baz = ${formatNumber(r.prevDeflator, 0)}`;
       } else {
-        deflSubEl.textContent = `Manuel Girilen Değer`;
+        deflSubEl.textContent = `Manuel değer girilmedi — regresyon kullanıldı: Baz = ${formatNumber(r.prevDeflator, 0)}`;
       }
     }
 
@@ -260,7 +346,7 @@
       heroGrowthEl.className = 'growth-badge ' + (r.predictions.ardl.growth >= 0 ? 'positive' : 'negative');
     }
     if (heroNominalEl) heroNominalEl.textContent = formatCurrency(r.nominalGdp, 0);
-    if (heroPrevEl) heroPrevEl.textContent = `${formatNumber(r.prevGdp77, 1)} (${r.prevYear})`;
+    if (heroPrevEl) heroPrevEl.textContent = `${formatNumber(r.prevGdp77, 1)} (${r.prevYear}${r.prevIsForecast ? ' tahmini' : ''})`;
 
     // 4. Comparison Table
     updateComparisonTable(r);
@@ -270,6 +356,153 @@
 
     // 6. Interactive Chart
     updateChart(r);
+
+    // 7. 2025–2026 scenario summary & status
+    updateScenarioSummary();
+    updateStatusBar();
+  }
+
+  const METHOD_LABELS = {
+    regression: 'Ekonometrik regresyon',
+    simple: 'Basit formül (%40 kur + %60 TÜFE)',
+    manual: 'Manuel',
+    override: 'Elle verilen'
+  };
+
+  function computeScenarioResults() {
+    return SCENARIO_YEARS.map(y => ({ year: y, modified: isYearModified(y), res: runPrediction(state.scenario[y]) }));
+  }
+
+  function updateScenarioSummary() {
+    const tbody = document.getElementById('scenarioSummaryBody');
+    if (!tbody) return;
+    const cols = computeScenarioResults();
+
+    cols.forEach(c => {
+      const th = document.getElementById('summaryHead' + c.year);
+      if (th) {
+        th.innerHTML = `${c.year} <span class="year-state ${c.modified ? 'modified' : ''}">${c.modified ? 'Değiştirildi' : 'Varsayılan'}</span>`;
+      }
+    });
+
+    const growthCell = g => `<span style="font-weight: 600; color: ${g >= 0 ? '#065f46' : '#991b1b'};">${formatPercent(g)}</span>`;
+    const rows = [
+      ['Önceki yıl referansı', c => `${c.res.prevYear}${c.res.prevIsForecast ? ' (tahmin)' : ' (gerçekleşen)'}`],
+      ['Önceki yıl GDP77', c => formatNumber(c.res.prevGdp77, 1)],
+      ['Deflatör yöntemi', c => METHOD_LABELS[c.res.deflatorMethodUsed]],
+      ['Uygulanan deflatör', c => formatNumber(c.res.deflator, 0)],
+      ['Deflatör artışı', c => formatPercent(c.res.deflatorGrowth)],
+      ['ARDL GDP77 (ana model)', c => formatNumber(c.res.predictions.ardl.val, 1), true],
+      ['ARDL reel büyüme', c => growthCell(c.res.predictions.ardl.growth), true],
+      ['Ridge GDP77 / büyüme', c => `${formatNumber(c.res.predictions.ridge.val, 1)} · ${growthCell(c.res.predictions.ridge.growth)}`],
+      ['OLS GDP77 / büyüme', c => `${formatNumber(c.res.predictions.ols.val, 1)} · ${growthCell(c.res.predictions.ols.growth)}`],
+      ['ElasticNet GDP77 / büyüme', c => `${formatNumber(c.res.predictions.elasticnet.val, 1)} · ${growthCell(c.res.predictions.elasticnet.growth)}`],
+      ['Nominal GSYİH (ARDL)', c => formatCurrency(c.res.nominalGdp, 0)]
+    ];
+
+    tbody.innerHTML = rows.map(([label, fn, primary]) => `
+      <tr class="${primary ? 'active-row' : ''}">
+        <td>${label}</td>
+        ${cols.map(c => `<td>${fn(c)}</td>`).join('')}
+      </tr>
+    `).join('');
+  }
+
+  function updateStatusBar() {
+    const chip = document.getElementById('scenarioStatus');
+    if (chip) {
+      chip.textContent = SCENARIO_YEARS.map(y => `${y}: ${isYearModified(y) ? 'Değiştirildi' : 'Varsayılan'}`).join(' · ');
+      chip.className = 'status-chip' + (SCENARIO_YEARS.some(isYearModified) ? ' modified' : '');
+    }
+    const info = document.getElementById('lastRunInfo');
+    if (info && !info.classList.contains('flash')) {
+      info.textContent = state.lastRunAt
+        ? `Model son çalıştırma: ${state.lastRunAt.toLocaleTimeString('tr-TR')}`
+        : 'Girdiler değiştikçe model otomatik yeniden hesaplanır';
+    }
+  }
+
+  function flashStatus(message) {
+    const info = document.getElementById('lastRunInfo');
+    if (!info) return;
+    info.textContent = message;
+    info.classList.add('flash');
+    clearTimeout(flashStatus.timer);
+    flashStatus.timer = setTimeout(() => {
+      info.classList.remove('flash');
+      updateStatusBar();
+    }, 2500);
+  }
+
+  // CSV export (Excel-friendly for Turkish locale: ';' separator, ',' decimals, UTF-8 BOM)
+  function csvNum(num, decimals = 2) {
+    if (num === null || num === undefined || isNaN(num)) return '';
+    return Number(num).toLocaleString('tr-TR', { useGrouping: false, maximumFractionDigits: decimals });
+  }
+
+  function csvCell(val) {
+    const str = String(val);
+    return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+  }
+
+  function buildExportCsv() {
+    const cols = computeScenarioResults();
+    const rows = [];
+    const add = (label, unit, fn) => rows.push([label, unit].concat(cols.map(fn)));
+    const inp = (c, f) => state.scenario[c.year][f];
+
+    rows.push(['KKTC GSYİH Tahmin Sonuçları (2025–2026)']);
+    rows.push(['Dışa aktarma zamanı', new Date().toLocaleString('tr-TR')]);
+    rows.push(['Seçili deflatör yöntemi', METHOD_LABELS[state.deflatorMethod]]);
+    rows.push([]);
+    rows.push(['Kalem', 'Birim'].concat(cols.map(c => String(c.year))));
+    add('Girdi durumu', '', c => (c.modified ? 'Değiştirildi' : 'Varsayılan'));
+    rows.push(['GİRDİLER']);
+    add('TÜFE değişimi (CPIchg)', '%', c => csvNum(inp(c, 'cpichg')));
+    add('USD/TRY değişimi (USDTRYchg)', '%', c => csvNum(inp(c, 'usdtrychg')));
+    add('Nüfus (POP)', 'kişi', c => csvNum(inp(c, 'pop'), 0));
+    add('Elektrik tüketimi (ElectricKwH)', 'milyon kWh', c => csvNum(inp(c, 'electrickwh')));
+    add('Dışsal şok kuklası (DummyCorona)', '0/1', c => csvNum(inp(c, 'dummycorona'), 0));
+    add('Kamu harcamaları (PubSPEN, cari)', 'TL', c => csvNum(inp(c, 'pubspen_nom'), 0));
+    add('Banka mevduatları (DEPOSIT, cari)', 'TL', c => csvNum(inp(c, 'deposit_nom'), 0));
+    add('Toplam ithalat (IMP, cari)', 'TL', c => csvNum(inp(c, 'imp_nom'), 0));
+    add('Banka kredileri (KREDI, cari)', 'TL', c => csvNum(inp(c, 'kredi_nom'), 0));
+    if (state.deflatorMethod === 'manual') {
+      add('Manuel deflatör', 'endeks', c => csvNum(inp(c, 'manual_deflator'), 0));
+    }
+    rows.push(['DEFLATÖR & REEL DEĞERLER']);
+    add('Önceki yıl referansı', '', c => `${c.res.prevYear} ${c.res.prevIsForecast ? '(tahmin)' : '(gerçekleşen)'}`);
+    add('Önceki yıl GDP77', 'milyon TL (1977)', c => csvNum(c.res.prevGdp77));
+    add('Baz deflatör', 'endeks', c => csvNum(c.res.prevDeflator, 0));
+    add('Uygulanan deflatör yöntemi', '', c => METHOD_LABELS[c.res.deflatorMethodUsed]);
+    add('Uygulanan deflatör', 'endeks', c => csvNum(c.res.deflator, 0));
+    add('Deflatör artışı', '%', c => csvNum(c.res.deflatorGrowth));
+    add('Reel kamu harcamaları (PubSPEN77)', 'milyon TL (1977)', c => csvNum(c.res.realValues.pubspen77));
+    add('Reel mevduat (DEPOSIT77)', 'milyon TL (1977)', c => csvNum(c.res.realValues.deposit77));
+    add('Reel ithalat (IMP77)', 'milyon TL (1977)', c => csvNum(c.res.realValues.imp77));
+    add('Reel kredi (KREDI77)', 'milyon TL (1977)', c => csvNum(c.res.realValues.kredi77));
+    rows.push(['MODEL TAHMİNLERİ']);
+    [['ardl', 'ARDL (ana model)'], ['ridge', 'Ridge'], ['ols', 'OLS'], ['elasticnet', 'ElasticNet']].forEach(([key, name]) => {
+      add(`${name} GDP77`, 'milyon TL (1977)', c => csvNum(c.res.predictions[key].val));
+      add(`${name} reel büyüme`, '%', c => csvNum(c.res.predictions[key].growth));
+    });
+    add('Nominal GSYİH (ARDL × deflatör)', 'TL', c => csvNum(c.res.nominalGdp, 0));
+
+    return '\uFEFF' + rows.map(r => r.map(csvCell).join(';')).join('\r\n');
+  }
+
+  function exportResults() {
+    const csv = buildExportCsv();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kktc-gsyih-tahmin-2025-2026_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    flashStatus('Sonuçlar CSV olarak indirildi');
   }
 
   function updateComparisonTable(r) {
@@ -357,11 +590,17 @@
     const labels = history.map(h => h.year);
     const actualGdp = history.map(h => h.gdp77);
 
-    // Append forecast point
-    labels.push(r.year);
+    // Append chained intermediate forecasts (e.g. 2025 when forecasting 2026) and the target point
     const forecastData = new Array(actualGdp.length).fill(null);
     forecastData[forecastData.length - 1] = actualGdp[actualGdp.length - 1]; // bridge point
+    getIntermediateForecasts(r.year).forEach(p => {
+      labels.push(p.year);
+      forecastData.push(Number(p.gdp77.toFixed(1)));
+    });
+    labels.push(r.year);
     forecastData.push(Number(r.predictions.ardl.val.toFixed(1)));
+    const actualSeries = labels.map((_, i) => (i < actualGdp.length ? actualGdp[i] : null));
+    const forecastRadius = forecastData.map((v, i) => (i >= actualGdp.length ? (i === forecastData.length - 1 ? 6 : 4) : 0));
 
     if (state.chartInstance) {
       state.chartInstance.destroy();
@@ -374,7 +613,7 @@
         datasets: [
           {
             label: 'Gerçekleşen GSYİH (1977 Sabit)',
-            data: [...actualGdp, null],
+            data: actualSeries,
             borderColor: '#101010',
             backgroundColor: 'transparent',
             borderWidth: 2,
@@ -389,7 +628,7 @@
             backgroundColor: 'rgba(0, 153, 255, 0.05)',
             borderDash: [5, 5],
             borderWidth: 2,
-            pointRadius: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6],
+            pointRadius: forecastRadius,
             pointBackgroundColor: '#0099ff',
             pointBorderColor: '#ffffff',
             pointBorderWidth: 2,
@@ -459,23 +698,14 @@
     });
   }
 
-  // Preset switchers
+
+  // Year switchers. 2025/2026 bind the form to the editable scenario (edits persist);
+  // 2024 loads actual values for validation (edits there are not stored).
   function applyPreset(presetName) {
-    if (presetName === '2025') {
-      const def = window.MODEL_DATA.defaults_2025;
-      state.inputs = {
-        year: 2025,
-        pubspen_nom: def.pubspen_nom,
-        deposit_nom: def.deposit_nom,
-        imp_nom: def.imp_nom,
-        kredi_nom: def.kredi_nom,
-        pop: def.pop,
-        electrickwh: def.electrickwh,
-        dummycorona: def.dummycorona,
-        usdtrychg: def.usdtrychg,
-        cpichg: def.cpichg
-      };
-    } else if (presetName === '2024') {
+    const year = Number(presetName);
+    if (state.scenario[year]) {
+      state.inputs = state.scenario[year];
+    } else if (year === 2024) {
       const h24 = window.MODEL_DATA.history.find(h => h.year === 2024);
       state.inputs = {
         year: 2024,
@@ -487,27 +717,19 @@
         electrickwh: h24.electrickwh,
         dummycorona: 0,
         usdtrychg: h24.usdtrychg,
-        cpichg: h24.cpichg
-      };
-    } else if (presetName === '2026') {
-      // Conservative forward projection
-      state.inputs = {
-        year: 2026,
-        pubspen_nom: Math.round(129839075419 * 1.35),
-        deposit_nom: Math.round(381222049000 * 1.35),
-        imp_nom: Math.round(148220100000 * 1.30),
-        kredi_nom: Math.round(197726563000 * 1.35),
-        pop: 520785,
-        electrickwh: 2240.0,
-        dummycorona: 0,
-        usdtrychg: 18.0,
-        cpichg: 30.0
+        cpichg: h24.cpichg,
+        manual_deflator: null
       };
     }
 
-    // Populate inputs in DOM
     populateInputFields();
     updateUI();
+  }
+
+  function setActivePresetButton(year) {
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-preset') === String(year));
+    });
   }
 
   const FORMATTED_FIELDS = ['pubspen_nom', 'deposit_nom', 'imp_nom', 'kredi_nom', 'pop', 'manualDeflatorInput'];
@@ -561,11 +783,7 @@
   }
 
   function populateInputFields() {
-    const fields = [
-      'year', 'pubspen_nom', 'deposit_nom', 'imp_nom', 'kredi_nom',
-      'pop', 'electrickwh', 'dummycorona', 'usdtrychg', 'cpichg'
-    ];
-    fields.forEach(field => {
+    ['year'].concat(INPUT_FIELDS).forEach(field => {
       const el = document.getElementById(field);
       if (el) {
         if (FORMATTED_FIELDS.includes(field)) {
@@ -577,30 +795,58 @@
     });
 
     const manualDefEl = document.getElementById('manualDeflatorInput');
-    if (manualDefEl && state.manualDeflator) {
-      manualDefEl.value = formatIntegerThousand(state.manualDeflator);
-    }
+    if (manualDefEl) manualDefEl.value = formatIntegerThousand(state.inputs.manual_deflator);
+
+    const deflSelect = document.getElementById('deflatorMethodSelect');
+    if (deflSelect) deflSelect.value = state.deflatorMethod;
+    const manualGroup = document.getElementById('manualDeflatorGroup');
+    if (manualGroup) manualGroup.style.display = state.deflatorMethod === 'manual' ? 'block' : 'none';
   }
 
   function syncInputsFromDOM() {
-    const fields = [
-      'year', 'pubspen_nom', 'deposit_nom', 'imp_nom', 'kredi_nom',
-      'pop', 'electrickwh', 'dummycorona', 'usdtrychg', 'cpichg'
-    ];
-    fields.forEach(field => {
+    INPUT_FIELDS.forEach(field => {
       const el = document.getElementById(field);
       if (el) {
-        if (FORMATTED_FIELDS.includes(field)) {
-          state.inputs[field] = parseFormattedInt(el.value);
-        } else {
-          state.inputs[field] = Number(el.value);
-        }
+        state.inputs[field] = FORMATTED_FIELDS.includes(field) ? parseFormattedInt(el.value) : Number(el.value);
       }
     });
+    const manualDefEl = document.getElementById('manualDeflatorInput');
+    if (manualDefEl) state.inputs.manual_deflator = parseFormattedInt(manualDefEl.value) || null;
+  }
+
+  // Called after any input edit: persist scenario years, then recompute
+  function onInputsChanged() {
+    saveState();
+    updateUI();
+  }
+
+  function runModel() {
+    syncInputsFromDOM();
+    onInputsChanged();
+    flashStatus(`Model çalıştırıldı: ${SCENARIO_YEARS.join(' ve ')} yeniden hesaplandı (${state.lastRunAt.toLocaleTimeString('tr-TR')})`);
+  }
+
+  function resetToDefaults() {
+    const ok = window.confirm('2025 ve 2026 için yaptığınız tüm değişiklikler silinecek ve varsayılan veriler yüklenecek. Devam edilsin mi?');
+    if (!ok) return;
+    state.scenario = defaultScenario();
+    state.deflatorMethod = 'regression';
+    const activeYear = state.scenario[state.inputs.year] ? state.inputs.year : 2025;
+    state.inputs = state.scenario[activeYear];
+    setActivePresetButton(activeYear);
+    const slider = document.getElementById('deflatorSlider');
+    if (slider) slider.value = 0;
+    saveState();
+    populateInputFields();
+    updateUI();
+    flashStatus('Varsayılan veriler yüklendi');
   }
 
   // Initialize listeners
   function init() {
+    loadSavedState();
+    state.inputs = state.scenario[2025];
+    setActivePresetButton(2025);
     populateInputFields();
 
     // Attach thousand formatters to numeric text inputs
@@ -609,40 +855,35 @@
       if (el) {
         attachThousandFormatter(el, (numVal) => {
           if (fieldId === 'manualDeflatorInput') {
-            state.manualDeflator = numVal;
+            state.inputs.manual_deflator = numVal || null;
           } else {
             state.inputs[fieldId] = numVal;
           }
-          updateUI();
+          onInputsChanged();
         });
       }
     });
 
-    // Input change events for non-formatted controls (select, range, decimal inputs)
-    const otherInputs = document.querySelectorAll('.form-control:not(.formatted-number)');
+    // Input change events for non-formatted inputs (decimal fields, shock dummy)
+    const otherInputs = document.querySelectorAll('.form-control:not(.formatted-number):not([readonly]):not(#deflatorMethodSelect)');
     otherInputs.forEach(input => {
-      input.addEventListener('input', () => {
+      ['input', 'change'].forEach(evt => input.addEventListener(evt, () => {
         syncInputsFromDOM();
-        updateUI();
-      });
-      input.addEventListener('change', () => {
-        syncInputsFromDOM();
-        updateUI();
-      });
+        onInputsChanged();
+      }));
     });
 
-    // Preset buttons
+    // Year buttons
     const presetBtns = document.querySelectorAll('.preset-btn');
     presetBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        presetBtns.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        const preset = e.target.getAttribute('data-preset');
+        const preset = e.currentTarget.getAttribute('data-preset');
+        setActivePresetButton(preset);
         applyPreset(preset);
       });
     });
 
-    // Deflator method select
+    // Deflator method select (applies to all years)
     const deflSelect = document.getElementById('deflatorMethodSelect');
     const manualGroup = document.getElementById('manualDeflatorGroup');
     const manualInput = document.getElementById('manualDeflatorInput');
@@ -652,14 +893,14 @@
         state.deflatorMethod = e.target.value;
         if (state.deflatorMethod === 'manual') {
           if (manualGroup) manualGroup.style.display = 'block';
-          if (manualInput && !state.manualDeflator && state.results) {
-            state.manualDeflator = Math.round(state.results.deflator);
-            manualInput.value = formatIntegerThousand(state.manualDeflator);
+          if (manualInput && !state.inputs.manual_deflator && state.results) {
+            state.inputs.manual_deflator = Math.round(state.results.deflator);
+            manualInput.value = formatIntegerThousand(state.inputs.manual_deflator);
           }
         } else {
           if (manualGroup) manualGroup.style.display = 'none';
         }
-        updateUI();
+        onInputsChanged();
       });
     }
 
@@ -673,18 +914,14 @@
       });
     }
 
-    // Reset button
+    const runBtn = document.getElementById('runModelBtn');
+    if (runBtn) runBtn.addEventListener('click', runModel);
+
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportResults);
+
     const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        applyPreset('2025');
-        const defaultPresetBtn = document.querySelector('[data-preset="2025"]');
-        if (defaultPresetBtn) {
-          presetBtns.forEach(b => b.classList.remove('active'));
-          defaultPresetBtn.classList.add('active');
-        }
-      });
-    }
+    if (resetBtn) resetBtn.addEventListener('click', resetToDefaults);
 
     // Initial render
     updateUI();

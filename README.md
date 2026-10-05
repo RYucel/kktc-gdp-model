@@ -71,6 +71,18 @@ git push -u origin main
 
 ---
 
+## 🗂️ 2025–2026 Senaryo Yönetimi
+
+- **Zincirleme tahmin:** 2026 tahmini, gecikmeli GSYİH ve baz deflatör olarak 2025 *tahmininin* değerlerini kullanır (2024'e geri düşmez).
+- **Düzenlenebilir girdiler:** 2025 ve 2026 girdileri üstteki yıl düğmeleriyle seçilip manuel değiştirilebilir; 2025'teki değişiklik 2026'ya da yansır. Değişiklikler tarayıcıda (localStorage) saklanır.
+- **Modeli Çalıştır:** Formdaki değerlerle iki yılı yeniden hesaplar.
+- **Dışa Aktar:** Girdiler, deflatör, reel değerler ve tüm model tahminleri (2025 & 2026) Excel uyumlu CSV olarak indirilir (`;` ayraç, ondalık virgül, UTF-8).
+- **Varsayılanları Yükle:** `model_data.js` içindeki `defaults_2025` / `defaults_2026` değerlerine geri döner.
+
+Varsayılan 2026 girdileri: TÜFE %35,9 · USD/TRY %19,41 · Nüfus 520.785 · İthalat 197,79 milyar ₺ · Mevduat 575,23 milyar ₺ · Kredi 295,93 milyar ₺ · Elektrik 2.153,34 milyon kWh · Kamu harcaması 181,10 milyar ₺.
+
+---
+
 ## 🎨 Tasarım Sistemi (Cal.com Inspired)
 - **Monokromatik ve Fonksiyonel Estetik:** Paper `#f4f4f4`, Card White `#ffffff`, Ink `#101010`, Silver `#e5e7eb` sınırları.
 - **Tipografi:** Cal Sans & Inter, yüksek okunabilirlik ve teknik hassasiyet.

@@ -44,15 +44,36 @@
         <button type="button" class="preset-btn" data-preset="2026">2026 Projeksiyon</button>
       </div>
 
-      <button type="button" id="resetBtn" class="btn btn-ghost" title="Varsayılan değerlere sıfırla">
+      <button type="button" id="runModelBtn" class="btn btn-primary" title="Girdilerle modelleri yeniden çalıştır">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="6 4 20 12 6 20 6 4"/>
+        </svg>
+        Modeli Çalıştır
+      </button>
+
+      <button type="button" id="exportBtn" class="btn btn-ghost" title="2025–2026 girdi ve sonuçlarını CSV (Excel) olarak indir">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Dışa Aktar
+      </button>
+
+      <button type="button" id="resetBtn" class="btn btn-ghost" title="2025 ve 2026 girdilerini varsayılan değerlere döndür">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
           <path d="M3 3v5h5"/>
         </svg>
-        Sıfırla
+        Varsayılanları Yükle
       </button>
     </div>
   </header>
+
+  <div class="status-bar">
+    <span id="scenarioStatus" class="status-chip">2025: Varsayılan · 2026: Varsayılan</span>
+    <span id="lastRunInfo" class="status-text"></span>
+  </div>
 
   <!-- Main Content Grid -->
   <main class="dashboard-container">
@@ -79,10 +100,10 @@
           <div class="form-group full-width">
             <label class="field-label" for="year">
               <span>Hedef Tahmin Yılı</span>
-              <span class="hint">Model lag referansını otomatik ayarlar</span>
+              <span class="hint">Üstteki yıl düğmeleriyle seçilir</span>
             </label>
             <div class="input-wrapper">
-              <input type="number" id="year" class="form-control" value="2025" min="1985" max="2035">
+              <input type="number" id="year" class="form-control" value="2025" readonly tabindex="-1">
               <span class="input-unit">Yıl</span>
             </div>
           </div>
@@ -296,6 +317,30 @@
             <span class="hero-stat-label">Model Güvenilirliği</span>
             <span class="hero-stat-val">MAPE: %2.83</span>
           </div>
+        </div>
+      </div>
+
+      <!-- 2025–2026 Scenario Summary -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">2025–2026 Senaryo Özeti</h3>
+            <div class="card-subtitle">2026, 2025 tahmininin GSYİH'si ve deflatörü üzerine zincirlenir. Dışa aktarılan tablo budur.</div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Kalem</th>
+                <th id="summaryHead2025">2025</th>
+                <th id="summaryHead2026">2026</th>
+              </tr>
+            </thead>
+            <tbody id="scenarioSummaryBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
       </div>
 
