@@ -314,8 +314,8 @@
             <span class="hero-stat-val" id="heroPrevGdp">21,310.6 (2024)</span>
           </div>
           <div class="hero-stat-col">
-            <span class="hero-stat-label">Model Güvenilirliği</span>
-            <span class="hero-stat-val">MAPE: %2.83</span>
+            <span class="hero-stat-label">%90 Conformal Aralığı</span>
+            <span class="hero-stat-val" id="heroConformalBand">21.788 – 22.879</span>
           </div>
         </div>
       </div>
@@ -348,8 +348,8 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h3 class="card-title">Reel GSYİH Tarihsel Seyri & Projeksiyon</h3>
-            <div class="card-subtitle">1990–2024 gerçekleşen seriler ve tahmin edilen yıl</div>
+            <h3 class="card-title">Reel GSYİH Tarihsel Seyri & Potansiyel Trend</h3>
+            <div class="card-subtitle">1990–2024 gerçekleşen GSYİH, tsecon HP Potansiyel Trendi (λ=100) ve projeksiyon</div>
           </div>
         </div>
         <div class="chart-wrapper">
@@ -419,6 +419,31 @@
               </tr>
             </thead>
             <tbody id="sensitivityTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- tsecon Econometric Diagnostics & Validation Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Ekonometrik Tanı & Doğrulama (tsecon)</h3>
+            <div class="card-subtitle">Birim kök, yapısal kırılma, spesifikasyon, Newey-West HAC ve Growth-at-Risk bulguları</div>
+          </div>
+          <span class="model-tag">tsecon v0.6</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Test / Yöntem</th>
+                <th>İstatistik & Bulgular</th>
+                <th>Ekonometrik Karar</th>
+              </tr>
+            </thead>
+            <tbody id="tseconDiagnosticsBody">
               <!-- Dynamically populated -->
             </tbody>
           </table>

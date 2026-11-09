@@ -1,4 +1,4 @@
-// KKTC GSYIH Tahmin Modeli Veri Paketi
+// KKTC GSYIH Tahmin Modeli Veri Paketi (tsecon Entegreli)
 window.MODEL_DATA = {
   "features": [
     "PubSPEN77",
@@ -63,7 +63,59 @@ window.MODEL_DATA = {
     ],
     "mape": 2.83,
     "rmse": 404.14,
-    "r2": 0.9933
+    "r2": 0.9933,
+    "conformal_q90": 545.5
+  },
+  "ardl_adaptive_lasso": {
+    "intercept": 11631.39261904762,
+    "coefs": [
+      660.2400906025741,
+      1061.723923978502,
+      1021.165215207031,
+      0.0,
+      0.0,
+      859.8583488877546,
+      -500.3935023821079,
+      0.0,
+      0.0,
+      1652.224294859938
+    ],
+    "scaler_mean": [
+      4649.193095238095,
+      14191.557857142858,
+      5489.085952380953,
+      8247.891904761904,
+      260203.0519047619,
+      836.5730952380952,
+      0.047619047619047616,
+      37.55119047619047,
+      43.03261904761905,
+      11226.755238095238
+    ],
+    "scaler_scale": [
+      1937.3586365332424,
+      9257.853283345195,
+      2115.223215062273,
+      6290.488852665639,
+      97492.43569280775,
+      493.76219924405336,
+      0.21295885499997996,
+      34.56770810772478,
+      38.51437134737431,
+      4804.137408203593
+    ],
+    "mape": 2.64,
+    "rmse": 379.28,
+    "r2": 0.9941,
+    "conformal_q90": 535.3,
+    "selected_features": [
+      "PubSPEN77",
+      "DEPOSIT77",
+      "IMP77",
+      "ElectricKwH",
+      "DummyCorona",
+      "GDP77_lag1"
+    ]
   },
   "ridge": {
     "intercept": 11631.39261904762,
@@ -185,6 +237,67 @@ window.MODEL_DATA = {
     "coef_cpi": 0.602812357347081,
     "r2": 0.8657
   },
+  "tsecon_diagnostics": {
+    "version": "0.6.0",
+    "stationarity": {
+      "level_quadrant": "UnitRoot",
+      "diff_quadrant": "Stationary",
+      "adf_level_stat": 0.12,
+      "adf_level_p": 0.9671,
+      "adf_diff_stat": -4.24,
+      "adf_diff_p": 0.0006,
+      "kpss_diff_stat": 0.12
+    },
+    "structural_breaks": {
+      "za_year": 2004,
+      "za_stat": -5.13,
+      "za_p": 0.0193,
+      "bp_year": 2004,
+      "bp_sup_f": 37.93,
+      "bp_crit_5pct": 11.47
+    },
+    "specification": {
+      "reset_f": 0.768,
+      "reset_p": 0.4732,
+      "cusum_max": 6.3,
+      "cusum_bound": 16.83,
+      "hac_tvalues": {
+        "const": 319.48,
+        "PubSPEN77": 5.19,
+        "DEPOSIT77": 5.38,
+        "IMP77": 9.36,
+        "KREDI77": -0.13,
+        "POP": 0.42,
+        "ElectricKwH": 1.5,
+        "DummyCorona": -10.51,
+        "USDTRYchg": -0.48,
+        "CPIchg": 0.25,
+        "GDP77_lag1": 3.72
+      }
+    },
+    "forecast_superiority": {
+      "cw_stat": 3.63,
+      "cw_p": 0.00014,
+      "dm_stat": 1.51,
+      "dm_mae_gain": 74.1
+    },
+    "growth_at_risk": {
+      "taus": [
+        0.15,
+        0.25,
+        0.5,
+        0.75,
+        0.85
+      ],
+      "base_quantiles": [
+        1.83,
+        2.95,
+        5.68,
+        8.33,
+        10.14
+      ]
+    }
+  },
   "defaults_2025": {
     "year": 2025,
     "pubspen_nom": 129839075419,
@@ -199,22 +312,13 @@ window.MODEL_DATA = {
     "prev_deflator": 10885856.95,
     "prev_gdp77": 21310.57
   },
-  "defaults_2026": {
-    "year": 2026,
-    "pubspen_nom": 181103107500,
-    "deposit_nom": 575226213800,
-    "imp_nom": 197794441440,
-    "kredi_nom": 295929197335,
-    "pop": 520785,
-    "electrickwh": 2153.34,
-    "dummycorona": 0,
-    "usdtrychg": 19.41,
-    "cpichg": 35.9
-  },
   "history": [
     {
       "year": 1982,
       "gdp77": 4315.8,
+      "hp_trend": 4225.25,
+      "hp_cycle": 90.55,
+      "hp_gap_pct": 2.14,
       "deflator": 7.82,
       "growth": null,
       "pubspen77": 1239.95,
@@ -230,6 +334,9 @@ window.MODEL_DATA = {
     {
       "year": 1983,
       "gdp77": 4382.6,
+      "hp_trend": 4505.07,
+      "hp_cycle": -122.47,
+      "hp_gap_pct": -2.72,
       "deflator": 10.59,
       "growth": 1.55,
       "pubspen77": 1536.21,
@@ -245,6 +352,9 @@ window.MODEL_DATA = {
     {
       "year": 1984,
       "gdp77": 4637.1,
+      "hp_trend": 4785.8,
+      "hp_cycle": -148.7,
+      "hp_gap_pct": -3.11,
       "deflator": 15.65,
       "growth": 5.81,
       "pubspen77": 1723.19,
@@ -260,6 +370,9 @@ window.MODEL_DATA = {
     {
       "year": 1985,
       "gdp77": 4998.3,
+      "hp_trend": 5067.11,
+      "hp_cycle": -68.81,
+      "hp_gap_pct": -1.36,
       "deflator": 24.97,
       "growth": 7.79,
       "pubspen77": 1833.5,
@@ -275,6 +388,9 @@ window.MODEL_DATA = {
     {
       "year": 1986,
       "gdp77": 5232.3,
+      "hp_trend": 5347.2,
+      "hp_cycle": -114.9,
+      "hp_gap_pct": -2.15,
       "deflator": 36.65,
       "growth": 4.68,
       "pubspen77": 1922.77,
@@ -290,6 +406,9 @@ window.MODEL_DATA = {
     {
       "year": 1987,
       "gdp77": 5580.7,
+      "hp_trend": 5623.58,
+      "hp_cycle": -42.88,
+      "hp_gap_pct": -0.76,
       "deflator": 50.86,
       "growth": 6.66,
       "pubspen77": 2085.12,
@@ -305,6 +424,9 @@ window.MODEL_DATA = {
     {
       "year": 1988,
       "gdp77": 5999.1,
+      "hp_trend": 5892.6,
+      "hp_cycle": 106.5,
+      "hp_gap_pct": 1.81,
       "deflator": 79.86,
       "growth": 7.5,
       "pubspen77": 1887.17,
@@ -320,6 +442,9 @@ window.MODEL_DATA = {
     {
       "year": 1989,
       "gdp77": 6515.9,
+      "hp_trend": 6150.19,
+      "hp_cycle": 365.71,
+      "hp_gap_pct": 5.95,
       "deflator": 137.83,
       "growth": 8.61,
       "pubspen77": 1865.72,
@@ -335,6 +460,9 @@ window.MODEL_DATA = {
     {
       "year": 1990,
       "gdp77": 6935.8,
+      "hp_trend": 6393.34,
+      "hp_cycle": 542.46,
+      "hp_gap_pct": 8.48,
       "deflator": 221.83,
       "growth": 6.44,
       "pubspen77": 2365.54,
@@ -350,6 +478,9 @@ window.MODEL_DATA = {
     {
       "year": 1991,
       "gdp77": 6552.2,
+      "hp_trend": 6622.71,
+      "hp_cycle": -70.51,
+      "hp_gap_pct": -1.06,
       "deflator": 344.19,
       "growth": -5.53,
       "pubspen77": 2588.9,
@@ -365,6 +496,9 @@ window.MODEL_DATA = {
     {
       "year": 1992,
       "gdp77": 7082.0,
+      "hp_trend": 6844.36,
+      "hp_cycle": 237.64,
+      "hp_gap_pct": 3.47,
       "deflator": 566.72,
       "growth": 8.09,
       "pubspen77": 2416.24,
@@ -380,6 +514,9 @@ window.MODEL_DATA = {
     {
       "year": 1993,
       "gdp77": 7424.5,
+      "hp_trend": 7063.67,
+      "hp_cycle": 360.83,
+      "hp_gap_pct": 5.11,
       "deflator": 919.68,
       "growth": 4.84,
       "pubspen77": 2722.99,
@@ -395,6 +532,9 @@ window.MODEL_DATA = {
     {
       "year": 1994,
       "gdp77": 7144.0,
+      "hp_trend": 7288.38,
+      "hp_cycle": -144.38,
+      "hp_gap_pct": -1.98,
       "deflator": 2281.35,
       "growth": -3.78,
       "pubspen77": 2744.2,
@@ -410,6 +550,9 @@ window.MODEL_DATA = {
     {
       "year": 1995,
       "gdp77": 7360.0,
+      "hp_trend": 7529.84,
+      "hp_cycle": -169.84,
+      "hp_gap_pct": -2.26,
       "deflator": 4717.07,
       "growth": 3.02,
       "pubspen77": 2894.89,
@@ -425,6 +568,9 @@ window.MODEL_DATA = {
     {
       "year": 1996,
       "gdp77": 7637.7,
+      "hp_trend": 7797.97,
+      "hp_cycle": -160.27,
+      "hp_gap_pct": -2.06,
       "deflator": 8285.37,
       "growth": 3.77,
       "pubspen77": 2942.61,
@@ -440,6 +586,9 @@ window.MODEL_DATA = {
     {
       "year": 1997,
       "gdp77": 7967.6,
+      "hp_trend": 8100.98,
+      "hp_cycle": -133.38,
+      "hp_gap_pct": -1.65,
       "deflator": 14728.06,
       "growth": 4.32,
       "pubspen77": 3405.8,
@@ -455,6 +604,9 @@ window.MODEL_DATA = {
     {
       "year": 1998,
       "gdp77": 8383.8,
+      "hp_trend": 8445.47,
+      "hp_cycle": -61.67,
+      "hp_gap_pct": -0.73,
       "deflator": 27592.91,
       "growth": 5.22,
       "pubspen77": 3838.33,
@@ -470,6 +622,9 @@ window.MODEL_DATA = {
     {
       "year": 1999,
       "gdp77": 9013.9,
+      "hp_trend": 8836.73,
+      "hp_cycle": 177.17,
+      "hp_gap_pct": 2.0,
       "deflator": 44778.39,
       "growth": 7.52,
       "pubspen77": 4292.07,
@@ -485,6 +640,9 @@ window.MODEL_DATA = {
     {
       "year": 2000,
       "gdp77": 9018.2,
+      "hp_trend": 9279.4,
+      "hp_cycle": -261.2,
+      "hp_gap_pct": -2.81,
       "deflator": 72072.52,
       "growth": 0.05,
       "pubspen77": 4609.64,
@@ -500,6 +658,9 @@ window.MODEL_DATA = {
     {
       "year": 2001,
       "gdp77": 8535.7,
+      "hp_trend": 9779.93,
+      "hp_cycle": -1244.23,
+      "hp_gap_pct": -12.72,
       "deflator": 125256.55,
       "growth": -5.35,
       "pubspen77": 3932.81,
@@ -515,6 +676,9 @@ window.MODEL_DATA = {
     {
       "year": 2002,
       "gdp77": 9062.3,
+      "hp_trend": 10342.13,
+      "hp_cycle": -1279.83,
+      "hp_gap_pct": -12.37,
       "deflator": 155336.04,
       "growth": 6.17,
       "pubspen77": 5159.59,
@@ -530,6 +694,9 @@ window.MODEL_DATA = {
     {
       "year": 2003,
       "gdp77": 10018.8,
+      "hp_trend": 10957.37,
+      "hp_cycle": -938.57,
+      "hp_gap_pct": -8.57,
       "deflator": 187388.08,
       "growth": 10.55,
       "pubspen77": 5481.67,
@@ -545,6 +712,9 @@ window.MODEL_DATA = {
     {
       "year": 2004,
       "gdp77": 11441.3,
+      "hp_trend": 11604.24,
+      "hp_cycle": -162.94,
+      "hp_gap_pct": -1.4,
       "deflator": 214725.96,
       "growth": 14.2,
       "pubspen77": 5876.49,
@@ -560,6 +730,9 @@ window.MODEL_DATA = {
     {
       "year": 2005,
       "gdp77": 13016.2,
+      "hp_trend": 12251.92,
+      "hp_cycle": 764.28,
+      "hp_gap_pct": 6.24,
       "deflator": 235889.2,
       "growth": 13.77,
       "pubspen77": 6359.85,
@@ -575,6 +748,9 @@ window.MODEL_DATA = {
     {
       "year": 2006,
       "gdp77": 14673.9,
+      "hp_trend": 12867.97,
+      "hp_cycle": 1805.93,
+      "hp_gap_pct": 14.03,
       "deflator": 271781.85,
       "growth": 12.74,
       "pubspen77": 7078.14,
@@ -590,6 +766,9 @@ window.MODEL_DATA = {
     {
       "year": 2007,
       "gdp77": 15091.3,
+      "hp_trend": 13427.61,
+      "hp_cycle": 1663.69,
+      "hp_gap_pct": 12.39,
       "deflator": 305095.79,
       "growth": 2.84,
       "pubspen77": 6965.23,
@@ -605,6 +784,9 @@ window.MODEL_DATA = {
     {
       "year": 2008,
       "gdp77": 14657.4,
+      "hp_trend": 13924.1,
+      "hp_cycle": 733.3,
+      "hp_gap_pct": 5.27,
       "deflator": 346576.32,
       "growth": -2.88,
       "pubspen77": 6823.11,
@@ -620,6 +802,9 @@ window.MODEL_DATA = {
     {
       "year": 2009,
       "gdp77": 13850.0,
+      "hp_trend": 14367.34,
+      "hp_cycle": -517.34,
+      "hp_gap_pct": -3.6,
       "deflator": 388181.87,
       "growth": -5.51,
       "pubspen77": 6633.77,
@@ -635,6 +820,9 @@ window.MODEL_DATA = {
     {
       "year": 2010,
       "gdp77": 14360.8,
+      "hp_trend": 14774.56,
+      "hp_cycle": -413.76,
+      "hp_gap_pct": -2.8,
       "deflator": 390934.83,
       "growth": 3.69,
       "pubspen77": 6806.65,
@@ -650,6 +838,9 @@ window.MODEL_DATA = {
     {
       "year": 2011,
       "gdp77": 14917.1,
+      "hp_trend": 15157.83,
+      "hp_cycle": -240.73,
+      "hp_gap_pct": -1.59,
       "deflator": 436344.62,
       "growth": 3.87,
       "pubspen77": 6519.43,
@@ -665,6 +856,9 @@ window.MODEL_DATA = {
     {
       "year": 2012,
       "gdp77": 15188.1,
+      "hp_trend": 15525.07,
+      "hp_cycle": -336.97,
+      "hp_gap_pct": -2.17,
       "deflator": 457929.87,
       "growth": 1.82,
       "pubspen77": 6473.21,
@@ -680,6 +874,9 @@ window.MODEL_DATA = {
     {
       "year": 2013,
       "gdp77": 15349.1,
+      "hp_trend": 15881.79,
+      "hp_cycle": -532.69,
+      "hp_gap_pct": -3.35,
       "deflator": 495592.49,
       "growth": 1.06,
       "pubspen77": 6580.89,
@@ -695,6 +892,9 @@ window.MODEL_DATA = {
     {
       "year": 2014,
       "gdp77": 16078.6,
+      "hp_trend": 16230.14,
+      "hp_cycle": -151.54,
+      "hp_gap_pct": -0.93,
       "deflator": 550955.09,
       "growth": 4.75,
       "pubspen77": 6598.43,
@@ -710,6 +910,9 @@ window.MODEL_DATA = {
     {
       "year": 2015,
       "gdp77": 16722.07,
+      "hp_trend": 16566.95,
+      "hp_cycle": 155.12,
+      "hp_gap_pct": 0.94,
       "deflator": 611315.08,
       "growth": 4.0,
       "pubspen77": 6284.61,
@@ -725,6 +928,9 @@ window.MODEL_DATA = {
     {
       "year": 2016,
       "gdp77": 17331.47,
+      "hp_trend": 16887.51,
+      "hp_cycle": 443.96,
+      "hp_gap_pct": 2.63,
       "deflator": 669373.58,
       "growth": 3.64,
       "pubspen77": 6215.24,
@@ -740,6 +946,9 @@ window.MODEL_DATA = {
     {
       "year": 2017,
       "gdp77": 18276.0,
+      "hp_trend": 17188.68,
+      "hp_cycle": 1087.32,
+      "hp_gap_pct": 6.33,
       "deflator": 795842.87,
       "growth": 5.45,
       "pubspen77": 6276.69,
@@ -755,6 +964,9 @@ window.MODEL_DATA = {
     {
       "year": 2018,
       "gdp77": 18520.4,
+      "hp_trend": 17471.75,
+      "hp_cycle": 1048.65,
+      "hp_gap_pct": 6.0,
       "deflator": 989404.4,
       "growth": 1.34,
       "pubspen77": 5510.69,
@@ -770,6 +982,9 @@ window.MODEL_DATA = {
     {
       "year": 2019,
       "gdp77": 18569.87,
+      "hp_trend": 17748.91,
+      "hp_cycle": 820.96,
+      "hp_gap_pct": 4.63,
       "deflator": 1153800.06,
       "growth": 0.27,
       "pubspen77": 6663.59,
@@ -785,6 +1000,9 @@ window.MODEL_DATA = {
     {
       "year": 2020,
       "gdp77": 15555.55,
+      "hp_trend": 18042.79,
+      "hp_cycle": -2487.24,
+      "hp_gap_pct": -13.79,
       "deflator": 1378971.45,
       "growth": -16.23,
       "pubspen77": 6391.72,
@@ -800,6 +1018,9 @@ window.MODEL_DATA = {
     {
       "year": 2021,
       "gdp77": 16163.96,
+      "hp_trend": 18384.26,
+      "hp_cycle": -2220.3,
+      "hp_gap_pct": -12.08,
       "deflator": 1871929.97,
       "growth": 3.91,
       "pubspen77": 5548.36,
@@ -815,6 +1036,9 @@ window.MODEL_DATA = {
     {
       "year": 2022,
       "gdp77": 18312.76,
+      "hp_trend": 18779.32,
+      "hp_cycle": -466.56,
+      "hp_gap_pct": -2.48,
       "deflator": 4042216.49,
       "growth": 13.29,
       "pubspen77": 4260.46,
@@ -830,6 +1054,9 @@ window.MODEL_DATA = {
     {
       "year": 2023,
       "gdp77": 19649.54,
+      "hp_trend": 19211.76,
+      "hp_cycle": 437.78,
+      "hp_gap_pct": 2.28,
       "deflator": 6735551.54,
       "growth": 7.3,
       "pubspen77": 5322.5,
@@ -845,6 +1072,9 @@ window.MODEL_DATA = {
     {
       "year": 2024,
       "gdp77": 21310.57,
+      "hp_trend": 19660.7,
+      "hp_cycle": 1649.87,
+      "hp_gap_pct": 8.39,
       "deflator": 10885856.95,
       "growth": 8.45,
       "pubspen77": 7828.09,
@@ -857,5 +1087,17 @@ window.MODEL_DATA = {
       "cpichg": 53.29,
       "dummycorona": 0
     }
-  ]
+  ],
+  "defaults_2026": {
+    "year": 2026,
+    "pubspen_nom": 181103107500,
+    "deposit_nom": 575226213800,
+    "imp_nom": 197794441440,
+    "kredi_nom": 295929197335,
+    "pop": 520785,
+    "electrickwh": 2153.34,
+    "dummycorona": 0,
+    "usdtrychg": 19.41,
+    "cpichg": 35.9
+  }
 };
